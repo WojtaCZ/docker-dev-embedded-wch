@@ -1,0 +1,48 @@
+{
+    "name": "dev-template-embedded-wch",
+    "build": {
+        "context": "..",
+        "dockerfile": "../Dockerfile"
+    },
+    "remoteUser": "dev",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+    "mounts": [
+        "source=${localEnv:HOME}/.claude.json,target=/host-claude-auth.json,type=bind",
+        "source=${localEnv:HOME}/.claude,target=/host-claude-dir,type=bind"
+    ],
+
+    "runArgs": [
+        "--init",
+        "--device=/dev/bus/usb",
+        "--group-add=dialout",
+        "--group-add=plugdev"
+    ],
+
+    "postCreateCommand": "bash /usr/local/bin/post-create.sh",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+                "eamodio.gitlens",
+                "ms-azuretools.vscode-docker",
+                "github.vscode-pull-request-github",
+                "webfreak.debug",
+                "mcu-debug.memory-view",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake",
+                "xaver.clang-format",
+                "notskm.clang-tidy",
+                "zixuanwang.linkerscript",
+                "jeff-hykin.better-cpp-syntax"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "clangd.arguments": ["--compile-commands-dir=${workspaceFolder}/build"]
+            }
+        }
+    }
+}

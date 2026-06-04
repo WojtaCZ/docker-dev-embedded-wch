@@ -5,7 +5,7 @@ USER root
 
 # RISC-V cross toolchain (g++, newlib) — prebuilt binary from AUR, fast to install
 # Covers: WCH CH32V003, CH32V203, CH32V303, CH32X033
-RUN su aurbuild -c "paru -S --noconfirm --needed riscv-none-elf-gcc-bin"
+RUN su aurbuild -c "paru -S --noconfirm --needed --skipreview riscv-none-elf-gcc-bin"
 
 # ch32v003fun — community bare-metal scaffolding for WCH CH32V
 # Header + minimal startup, no MounRiver / no vendor HAL.

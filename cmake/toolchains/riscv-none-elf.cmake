@@ -21,6 +21,11 @@
 # multiply. `ilp32e` is not ABI-compatible with `ilp32`, so a library built for
 # one will not link against the other — this is why march/mabi must be explicit.
 
+# CMake's compiler-ABI check runs in a scratch project that re-includes this file
+# but does not inherit -D cache variables; without this it fails with
+# "RISCV_MARCH is not set" (seen with CMake 4.4).
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES RISCV_MARCH RISCV_MABI)
+
 set(CMAKE_SYSTEM_NAME      Generic)
 set(CMAKE_SYSTEM_PROCESSOR riscv32)
 

@@ -138,7 +138,7 @@ SECTIONS {
   _sidata = LOADADDR(.data);
   .data : { _sdata = .; *(.data*) . = ALIGN(4); _edata = .; } > RAM AT> FLASH
   .bss  : { _sbss  = .; *(.bss*) *(COMMON) . = ALIGN(4); _ebss = .; } > RAM
-  /DISCARD/ : { *(.riscv.attributes) *(.comment) }
+  /DISCARD/ : { *(.comment) }  /* keep .riscv.attributes: the test below reads the ISA from it */
 }
 LD
 
@@ -154,6 +154,7 @@ target_compile_options(firmware PRIVATE
     -fno-exceptions -fno-rtti -fno-threadsafe-statics
     -ffunction-sections -fdata-sections -Os -Wall -Wextra)
 target_link_options(firmware PRIVATE -Wl,--gc-sections -nostdlib -lgcc)
+embedded_artifacts(firmware)
 CMAKE
 
 python - <<'PY'
@@ -178,6 +179,7 @@ PY
 mcu build
 pass "CH32V003 firmware built via mcu"
 [ -f build/firmware.elf ] || fail "no firmware.elf"
+[ -f build/firmware.bin ] || fail "embedded_artifacts did not produce .bin (the profile flashes it)"
 
 echo "-- build attributes --"
 riscv-none-elf-readelf -A build/firmware.elf | grep -i 'Tag_RISCV_arch' || true

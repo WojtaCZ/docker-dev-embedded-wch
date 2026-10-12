@@ -28,9 +28,15 @@ echo "== multilibs =="
 riscv-none-elf-gcc -print-multi-lib | grep -q 'rv32e' \
     || fail "no rv32e multilib — CH32V003 would not link"
 pass "rv32e present (CH32V003)"
-riscv-none-elf-gcc -print-multi-lib | grep -q 'rv32imac' \
-    || fail "no rv32imac multilib — CH32V203/X033 would not link"
-pass "rv32imac present (CH32V203/X033)"
+# GCC 15 no longer lists rv32imac in -print-multi-lib (it is served by the
+# default multilib), so prove it by linking rather than grepping the list.
+_t=$(mktemp -d)
+echo 'int main(void){return 0;}' > "$_t/t.c"
+riscv-none-elf-gcc -march=rv32imac_zicsr -mabi=ilp32 --specs=nosys.specs \
+    "$_t/t.c" -o "$_t/t.elf" 2>/dev/null \
+    || fail "cannot link rv32imac — CH32V203/X033 would not link"
+rm -rf "$_t"
+pass "rv32imac links (CH32V203/X033)"
 
 echo "== flash tooling =="
 # wlink was previously expected from a non-existent AUR package, so every

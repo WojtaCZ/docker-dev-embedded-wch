@@ -10,7 +10,10 @@ USER root
 # which exists in the AUR) is gone.
 ARG RISCV_GCC_VERSION=15.2.0-1
 ARG WLINK_VERSION=v0.1.2
-ARG WCHISP_VERSION=v0.3.0
+# `nightly` on purpose: v0.3.0 (2024-10) predates `wchisp config enable-debug` and
+# the CH582F/CH573F/CH592F WeAct boards; there has been no tagged release since.
+# Pin to a tag via --build-arg WCHISP_VERSION=vX.Y.Z when one appears.
+ARG WCHISP_VERSION=nightly
 ARG CH32FUN_REF=master
 
 # ---------------------------------------------------------------------------
@@ -45,12 +48,18 @@ RUN curl -fsSL -o /tmp/wlink.tar.gz \
 # expose a factory USB ISP bootloader, which is the difference between "I need
 # a WCH-Link" and "I need a USB cable".
 # ---------------------------------------------------------------------------
-RUN curl -fsSL -o /tmp/wchisp.tar.gz \
-      "https://github.com/ch32-rs/wchisp/releases/download/${WCHISP_VERSION}/wchisp-${WCHISP_VERSION}-linux-x64.tar.gz" && \
+RUN if [ "${WCHISP_VERSION}" = "nightly" ]; then \
+        asset=wchisp-linux-x64.tar.gz; \
+    else \
+        asset="wchisp-${WCHISP_VERSION}-linux-x64.tar.gz"; \
+    fi && \
+    curl -fsSL -o /tmp/wchisp.tar.gz \
+      "https://github.com/ch32-rs/wchisp/releases/download/${WCHISP_VERSION}/${asset}" && \
     tar -xzf /tmp/wchisp.tar.gz -C /tmp && \
     install -m0755 "$(find /tmp -name wchisp -type f | head -1)" /usr/local/bin/wchisp && \
     rm -rf /tmp/wchisp* && \
-    wchisp --version || true
+    wchisp --version && \
+    wchisp config --help | grep -q enable-debug
 
 # ---------------------------------------------------------------------------
 # ch32fun (formerly ch32v003fun) — community bare-metal scaffolding.
@@ -61,7 +70,9 @@ RUN git clone --depth=1 --branch "${CH32FUN_REF}" \
         https://github.com/cnlohr/ch32fun /opt/ch32fun && \
     rm -rf /opt/ch32fun/.git && \
     ln -sfn /opt/ch32fun /opt/ch32v003fun
-ENV CH32FUN=/opt/ch32fun \
+# NOT named CH32FUN: ch32fun.mk does `CH32FUN ?= <its own ch32fun/ dir>`, so
+# exporting CH32FUN=<repo root> broke every ch32fun build (missing ch32fun.c).
+ENV CH32FUN_ROOT=/opt/ch32fun \
     CH32V_FUN=/opt/ch32fun
 
 # WCH-Link udev rules (host install only — udev does not run in a container)
@@ -69,8 +80,13 @@ COPY udev-rules/ /opt/embedded/udev-rules/
 COPY scripts/install-host-udev-rules.sh /opt/embedded/install-host-udev-rules.sh
 RUN chmod +x /opt/embedded/install-host-udev-rules.sh
 
-# Default MCU profile and the RISC-V CMake toolchain file
+# CH58x: on-demand fetch of WCH's official EVT SDK (vendor BLE stack, not baked in)
+COPY scripts/ch58x-sdk.sh /usr/local/bin/ch58x-sdk
+RUN chmod +x /usr/local/bin/ch58x-sdk
+
+# Default MCU profile, per-chip profiles, and the RISC-V CMake toolchain file
 COPY profile.json /opt/embedded/profile.json
+COPY profiles/ /opt/embedded/profiles/
 COPY cmake/toolchains/ /opt/embedded/cmake/toolchains/
 
 # dev-doctor checks contributed by this layer

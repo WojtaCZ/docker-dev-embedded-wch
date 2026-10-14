@@ -48,13 +48,45 @@ command -v wchisp >/dev/null || fail "wchisp missing â€” no probe-free flash pat
 pass "wchisp"
 
 echo "== ch32fun =="
-[ -f "$CH32FUN/ch32fun/ch32fun.c" ] || fail "ch32fun sources not found at $CH32FUN"
-[ -f "$CH32FUN/ch32fun/ch32fun.h" ] || fail "ch32fun.h not found"
-pass "ch32fun at $CH32FUN"
+[ -z "${CH32FUN:-}" ] || fail "CH32FUN is exported ($CH32FUN) — ch32fun.mk treats it as its own ch32fun/ dir and every build breaks; use CH32FUN_ROOT"
+[ -f "$CH32FUN_ROOT/ch32fun/ch32fun.c" ] || fail "ch32fun sources not found at $CH32FUN_ROOT"
+[ -f "$CH32FUN_ROOT/ch32fun/ch32fun.h" ] || fail "ch32fun.h not found"
+pass "ch32fun at $CH32FUN_ROOT"
 [ -L /opt/ch32v003fun ] || fail "backwards-compatible /opt/ch32v003fun symlink missing"
 pass "legacy \$CH32V_FUN path still resolves"
 
+echo "== CH58x (CH582F, USB ISP) =="
+command -v ch58x-sdk >/dev/null || fail "ch58x-sdk missing"
+[ -f /opt/embedded/profiles/ch582f.json ] && jq -e '.flashTool=="wchisp" and (.flash|test("wchisp"))' /opt/embedded/profiles/ch582f.json >/dev/null     || fail "ch582f profile missing or not wchisp-based"
+pass "ch582f profile + ch58x-sdk"
+[ -f /etc/udev/rules.d/61-wch-isp.rules ] || [ -f /opt/embedded/udev-rules/61-wch-isp.rules ] || fail "WCH ISP udev rule (4348:55e0) missing"
+pass "ISP udev rule shipped"
+wchisp config --help | grep -q enable-debug || fail "wchisp too old: no `config enable-debug` (needs nightly / post-v0.3.0)"
+pass "wchisp config enable-debug"
+c58=$(mktemp -d)
+cp -r "$CH32FUN_ROOT/ch32fun" "$CH32FUN_ROOT/extralibs" "$c58/" 2>/dev/null || true
+mkdir -p "$c58/app" && cp "$CH32FUN_ROOT"/examples_ch5xx/blink/{blink.c,funconfig.h} "$c58/app/"
+cat > "$c58/app/Makefile" <<'MK'
+all : build
+TARGET:=firmware
+TARGET_MCU:=CH582F
+include ../ch32fun/ch32fun.mk
+flash : ; wchisp flash $(TARGET).bin
+clean : cv_clean
+MK
+mv "$c58/app/blink.c" "$c58/app/firmware.c"
+( cd "$c58/app" && make build >/tmp/ch582f.log 2>&1 ) || { tail -20 /tmp/ch582f.log; fail "CH582F firmware did not build"; }
+[ -s "$c58/app/firmware.bin" ] || fail "CH582F build produced no firmware.bin"
+riscv-none-elf-readelf -A "$c58/app/firmware.elf" | grep -q "rv32i2p1_m2p0_a2p1_c2p0"     || riscv-none-elf-readelf -A "$c58/app/firmware.elf" | grep -q "rv32i.*m.*a.*c"     || fail "CH582F firmware is not RV32IMAC"
+pass "CH582F (RV32IMAC) firmware builds: $(stat -c %s "$c58/app/firmware.bin") bytes"
+rm -rf "$c58"
+
 echo "== claude assets =="
+for s in ch58x-usb-isp ch58x-sdk-choices; do
+    [ -f "$HOME/.claude/skills/$s/SKILL.md" ] || fail "skill $s/SKILL.md not installed"
+    head -5 "$HOME/.claude/skills/$s/SKILL.md" | grep -q "^name: $s" || fail "skill $s frontmatter wrong"
+    pass "skill (directory form): $s"
+done
 for s in ch32fun-cpp-template ch32v-low-power riscv-csr-cheatsheet \
          ch32v-flash-verify ch32v-family-differences; do
     [ -f "$HOME/.claude/skills/$s.md" ] || fail "skill $s.md not installed"

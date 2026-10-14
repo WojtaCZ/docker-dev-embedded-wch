@@ -1,7 +1,7 @@
 Create a WCH CH32V/CH32X project from a part number. Arguments: $ARGUMENTS
 
 Usage: `/ch32-new-project <part-number> [make|cmake]`
-Examples: `/ch32-new-project CH32V003F4P6`, `/ch32-new-project CH32V203C8T6 cmake`
+Examples: `/ch32-new-project CH32V003F4P6`, `/ch32-new-project CH582F`, `/ch32-new-project CH32V203C8T6 cmake`
 
 Build system defaults to `make` (ch32fun's own, the well-trodden path). Pass
 `cmake` for the CMake flow, which gives you the same `tasks.json` / `launch.json`
@@ -22,6 +22,13 @@ the range; do not carry V003 assumptions to a V203.
 | CH32V203 | `rv32imac_zicsr` | `ilp32` | 32–64 KB | 10–20 KB | `CH32V20x` |
 | CH32V303 | `rv32imafc_zicsr` | `ilp32f` | 62–128 KB | 32 KB | `CH32V30x` |
 | CH32X033 | `rv32imac_zicsr` | `ilp32` | 62 KB | 20 KB | `CH32X03x` |
+| CH582F (CH58x) | `rv32imac` | `ilp32` | 448 KB | 32 KB | `TARGET_MCU:=CH582F` |
+
+**CH58x/CH59x/CH57x are a different flow** � read the `ch58x-sdk-choices` and `ch58x-usb-isp`
+skills first. Use `/opt/embedded/profiles/ch582f.json` as `.mcu-profile.json` (flash with
+`wchisp` over USB, no probe), copy `$CH32V_FUN/examples_ch5xx/blink` as the base and set
+`TARGET:=firmware`, `TARGET_MCU:=CH582F` and `flash : ; wchisp flash $(TARGET).bin`. Skip
+steps 3b-4 (ch32fun generates the linker script). BLE needs `ch58x-sdk` (official EVT).
 
 `ilp32e` and `ilp32` are **not** link-compatible, and RV32EC has no hardware
 multiply. Getting this pair wrong produces a binary that links and then executes
@@ -33,7 +40,7 @@ illegal instructions.
 mkdir -p .vscode src
 cp /opt/embedded/vscode-templates/tasks.json  .vscode/tasks.json
 cp /opt/embedded/vscode-templates/launch.json .vscode/launch.json
-cp /opt/embedded/profile.json                 .mcu-profile.json
+cp /opt/embedded/profile.json                 .mcu-profile.json   # CH582F: /opt/embedded/profiles/ch582f.json
 ```
 
 Set `chip`, `core`, `march`, `mabi` and a real `sizeBudget` from the table
@@ -45,12 +52,12 @@ in the profile. For probe-free USB-bootloader flashing, take `_wchisp_variant`.
 ### 3a. Make flow (ch32fun)
 
 ```bash
-cp -r $CH32FUN/examples/blink/* .          # V003
-cp -r $CH32FUN/examples_v20x/blink/* .     # V203 — the V003 examples do NOT build for it
+cp -r $CH32V_FUN/examples/blink/* .          # V003
+cp -r $CH32V_FUN/examples_v20x/blink/* .     # V203 — the V003 examples do NOT build for it
 ```
 
 Create `funconfig.h` with the right family define. ch32fun's `Makefile`
-includes `$CH32FUN/ch32fun/ch32fun.mk`; point `CH32FUN` at `/opt/ch32fun`.
+includes `ch32fun/ch32fun.mk`; include it via `$(CH32V_FUN)/ch32fun/ch32fun.mk` (`/opt/ch32fun`). Never export `CH32FUN` itself.
 
 See the `ch32fun-cpp-template` skill for adding C++ to a ch32fun project.
 

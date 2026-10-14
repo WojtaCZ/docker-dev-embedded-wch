@@ -98,7 +98,7 @@ V003. The `funconfig.h` mechanism selects the target:
 #include "funconfig.h"
 ```
 
-Examples live under `$CH32FUN/examples` (V003) and `$CH32FUN/examples_v20x`,
+Examples live under `$CH32V_FUN/examples` (V003) and `$CH32V_FUN/examples_v20x`,
 `examples_v30x`, `examples_x035` / `examples_x00x`. Copy from the one matching your part — the
 V003 examples will not build unchanged for a V203.
 

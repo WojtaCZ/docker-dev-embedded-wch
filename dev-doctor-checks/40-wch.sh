@@ -21,10 +21,14 @@ if have riscv-none-elf-gcc; then
     else
         emit FAIL "newlib-rv32e" "no rv32e multilib — CH32V003 will not link"
     fi
-    if riscv-none-elf-gcc -print-multi-lib 2>/dev/null | grep -q 'rv32imac'; then
-        emit OK "newlib-rv32imac" "rv32imac multilib present (CH32V203/X033 OK)"
+    # xPack's default multilib IS rv32imac/ilp32, so -march=rv32imac resolves to
+    # "." rather than to a named entry in -print-multi-lib (grepping that list
+    # for 'rv32imac' always missed it). Ask gcc what it actually selects.
+    if riscv-none-elf-gcc -Q --help=target 2>/dev/null | grep -E -- '-march=' | grep -q 'rv32imac' \
+       && [ "$(riscv-none-elf-gcc -march=rv32imac -mabi=ilp32 -print-multi-directory 2>/dev/null)" = "." ]; then
+        emit OK "newlib-rv32imac" "default multilib is rv32imac/ilp32 (CH58x/V103/V203/X033 OK)"
     else
-        emit WARN "newlib-rv32imac" "no rv32imac multilib"
+        emit WARN "newlib-rv32imac" "-march=rv32imac does not resolve to the default multilib"
     fi
 fi
 
@@ -42,7 +46,10 @@ else
 fi
 
 # ch32fun scaffolding
-CH="${CH32FUN:-/opt/ch32fun}"
+CH="${CH32FUN_ROOT:-/opt/ch32fun}"
+if [ -n "${CH32FUN:-}" ]; then
+    emit WARN "ch32fun-env" "CH32FUN is set ($CH32FUN) — ch32fun.mk reads it as its own ch32fun/ dir and will break; unset it"
+fi
 if [ -f "$CH/ch32fun/ch32fun.c" ]; then
     emit OK "ch32fun" "$CH"
 elif [ -d "$CH" ]; then
@@ -55,6 +62,19 @@ if [ -f /opt/embedded/cmake/toolchains/riscv-none-elf.cmake ]; then
     emit OK "riscv-toolchain-cmake" "/opt/embedded/cmake/toolchains/riscv-none-elf.cmake"
 else
     emit FAIL "riscv-toolchain-cmake" "missing"
+fi
+
+# CH58x USB ISP path: SDK fetcher and profile
+have ch58x-sdk && emit OK "ch58x-sdk" "on-demand EVT SDK fetcher" || emit WARN "ch58x-sdk" "missing"
+[ -f /opt/embedded/profiles/ch582f.json ] && emit OK "ch582f-profile" "/opt/embedded/profiles/ch582f.json" \
+    || emit WARN "ch582f-profile" "missing"
+# A chip sitting in its USB boot ROM (4348:55e0), absent in CI so warn only
+if have lsusb; then
+    if lsusb 2>/dev/null | grep -qi '\(4348\|1a86\):55e0'; then
+        emit OK "wch-isp" "$(lsusb | grep -i ':55e0' | head -1)"
+    else
+        emit WARN "wch-isp" "no chip in USB boot ROM (4348:55e0) — hold BOOT while plugging in; in WSL: usbipd attach --wsl --auto-attach --hardware-id 4348:55e0"
+    fi
 fi
 
 # WCH-Link on USB (absent in CI, so warn only)

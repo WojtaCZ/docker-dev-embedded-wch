@@ -10,8 +10,22 @@
         usbipd bind   --busid <busid>
         usbipd attach --wsl --busid <busid>   # the WCH-Link
 
-    Then run this script. The probe must be attached BEFORE the container
-    starts — /dev/bus/usb is bind-mounted once, at container start.
+    CH582F / CH58x over its own USB port (no probe): the chip only exists on USB
+    as 4348:55e0 while its boot ROM runs (hold BOOT while plugging in), and it
+    re-enumerates after every flash, so attach by VID:PID and auto-attach:
+
+        usbipd bind   --hardware-id 4348:55e0            # once, admin
+        usbipd attach --wsl --auto-attach --hardware-id 4348:55e0
+
+    Then run this script. /dev/bus/usb and /dev/input are both bind-mounted
+    live with a wildcard device-cgroup rule, so probes and touch/HID input
+    devices attached to WSL AFTER the container is already running — a second
+    board, a touch panel, a hotplug replug — are picked up with no container
+    restart. /dev/hidraw* nodes are the exception: they're flat in /dev with
+    no directory to mount live, so a device that only exposes hidraw (no
+    input handler) needs dev-up.sh re-run after it's plugged in. usbipd attach
+    is still needed once per device per WSL boot; that step is what gets it
+    into WSL's kernel at all and is outside the container's control.
 
 .EXAMPLE
     .\scripts\dev-up.ps1

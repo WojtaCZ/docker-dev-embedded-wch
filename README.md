@@ -17,10 +17,21 @@ the `mcu` task runner and the shared VSCode templates.
 | Toolchain | `riscv-none-elf-gcc/g++/gdb` — xPack prebuilt, GCC 15.x + newlib |
 | `wlink` | WCH-Link flash / erase / reset / GDB server |
 | `wchisp` | **Probe-free** flashing over the factory USB bootloader |
-| `ch32fun` | `/opt/ch32fun` → `$CH32FUN` (whole CH32V/CH32X range, not just V003) |
+| `ch32fun` | `/opt/ch32fun` → `$CH32V_FUN` / `$CH32FUN_ROOT` (not `CH32FUN`: ch32fun.mk uses that name itself) (whole CH32V/CH32X range, not just V003) |
 | CMake | `/opt/embedded/cmake/toolchains/riscv-none-elf.cmake` |
 | Claude | 5 skills, `/ch32-new-project` command |
 | `CROSS_PREFIX` | `riscv-none-elf-`, so the inherited binutils skills work here |
+
+## CH582F (CH58x BLE) over USB
+
+No probe needed: hold **BOOT** (PB22) while plugging USB in, then flash with
+`wchisp` (chip appears as `4348:55e0`). In WSL, attach by VID:PID with
+`usbipd attach --wsl --auto-attach --hardware-id 4348:55e0` (the chip
+re-enumerates after every flash). Profile: `/opt/embedded/profiles/ch582f.json`
+(copy to `.mcu-profile.json`, then `mcu build` / `mcu flash`). Firmware stack:
+ch32fun (`TARGET_MCU:=CH582F`, builds with the stock xPack GCC) or, for the BLE
+stack, `ch58x-sdk` (fetches WCH's Apache-2.0 EVT SDK on demand). See the
+`ch58x-usb-isp` and `ch58x-sdk-choices` skills.
 
 Everything above comes from an **official prebuilt release tarball**, so this
 image needs no AUR helper — the old `paru` bootstrap and its `wlink-bin` /
@@ -110,8 +121,8 @@ reading before you need it.
 **ch32fun Makefile** (default) — the well-trodden path:
 
 ```bash
-cp -r $CH32FUN/examples/blink/* .          # V003
-cp -r $CH32FUN/examples_v20x/blink/* .     # V203 — the V003 examples do NOT build for it
+cp -r $CH32V_FUN/examples/blink/* .          # V003
+cp -r $CH32V_FUN/examples_v20x/blink/* .     # V203 — the V003 examples do NOT build for it
 make -j$(nproc)
 ```
 
